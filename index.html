@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Salary Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .config-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .config-section h2 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-item label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .config-item input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .config-item input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-box p {
+            color: #004085;
+            margin: 5px 0;
+        }
+
+        .upload-section {
+            padding: 40px;
+        }
+
+        .upload-box {
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .upload-box.dragover {
+            border-color: #667eea;
+            background: #e7f3ff;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #adb5bd;
+            margin-bottom: 20px;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-info {
+            margin-top: 15px;
+            color: #6c757d;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card p {
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .stat-card.green .stat-value { color: #28a745; }
+        .stat-card.red .stat-value { color: #dc3545; }
+        .stat-card.blue .stat-value { color: #667eea; }
+
+        .attendance-table {
+            margin: 30px 0;
+        }
+
+        .attendance-table h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        thead {
+            background: #667eea;
+            color: white;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #dee2e6;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+        }
+
+        .salary-section {
+            margin-top: 40px;
+        }
+
+        .salary-section h2 {
+            font-size: 2em;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .salary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .salary-card {
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid;
+        }
+
+        .salary-card.credits {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .salary-card.deductions {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .salary-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        .salary-card.credits h3 { color: #155724; }
+        .salary-card.deductions h3 { color: #721c24; }
+
+        .salary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .salary-row:last-child {
+            border-bottom: none;
+        }
+
+        .salary-row.total {
+            border-top: 2px solid;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .final-salary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .final-salary p:first-child {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .final-salary .amount {
+            font-size: 3.5em;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .final-salary .details {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .salary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .final-salary .amount {
+                font-size: 2.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💰 Employee Salary Calculator</h1>
+            <p>Upload attendance Excel file to calculate salary automatically</p>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="config-section">
+            <h2>⚙️ Salary Configuration</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label>Employee Name</label>
+                    <input type="text" id="employeeName" placeholder="Enter employee name">
+                </div>
+                <div class="config-item">
+                    <label>Base Salary</label>
+                    <input type="number" id="baseSalary" value="40000">
+                </div>
+                <div class="config-item">
+                    <label>OT Rate/Hour</label>
+                    <input type="number" id="otRate" value="150">
+                </div>
+                <div class="config-item">
+                    <label>Bonus (Full Attendance)</label>
+                    <input type="number" id="bonus" value="5000">
+                </div>
+                <div class="config-item">
+                    <label>Food Deduction</label>
+                    <input type="number" id="foodDeduction" value="14000">
+                </div>
+                <div class="config-item">
+                    <label>Paid Leaves Allowed</label>
+                    <input type="number" id="paidLeaves" value="2">
+                </div>
+                <div class="config-item">
+                    <label>Advance Given</label>
+                    <input type="number" id="advanceAmount" value="0">
+                </div>
+            </div>
+            <div class="info-box">
+                <p>🕐 Working Hours: 10:00 AM - 7:00 PM | OT starts from 7:00 PM onwards</p>
+                <p>📅 Full attendance bonus: Given only if employee has ZERO absents</p>
+                <p>🏖️ Paid Leaves: Configurable paid leaves per month (salary included in base)</p>
+                <p>💰 Per Day Salary = Base Salary ÷ (Total Days in Month - Paid Leaves Allowed)</p>
+                <p>⏰ Half Day: Detected if left at/before 5 PM OR arrived after 12 PM (Deduction = Per Day Salary ÷ 2)</p>
+                <p>⏱️ Late Penalty: Arrival after 10:30 AM (up to 11:59 AM) → Minutes from 10:00 AM × OT rate/min deducted</p>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon">📁</div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Upload Excel File
+                </button>
+                <p class="upload-info">Upload attendance Excel file with clock-in and clock-out times</p>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden"></div>
+            <div id="loadingIndicator" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Processing file...</p>
+            </div>
+
+            <!-- Stats -->
+            <div id="statsSection" class="hidden">
+                <div class="stats-grid">
+                    <div class="stat-card blue">
+                        <p>Total Days in Month</p>
+                        <div class="stat-value" id="totalDaysInMonth">0</div>
+                    </div>
+                    <div class="stat-card green">
+                        <p>Total Work Days</p>
+                        <div class="stat-value" id="totalWorkDays">0</div>
+                    </div>
+                    <div class="stat-card red">
+                        <p>Absent Days</p>
+                        <div class="stat-value" id="absentDays">0</div>
+                    </div>
+                    <div class="stat-card blue">
+                        <p>Total OT Hours</p>
+                        <div class="stat-value" id="totalOTHours">0</div>
+                    </div>
+                    <div class="stat-card green">
+                        <p>Paid Leaves Used</p>
+                        <div class="stat-value" id="paidLeavesUsed">0</div>
+                    </div>
+                    <div class="stat-card red">
+                        <p>Unpaid Absents</p>
+                        <div class="stat-value" id="unpaidAbsents">0</div>
+                    </div>
+                    <div class="stat-card blue">
+                        <p>Half Days</p>
+                        <div class="stat-value" id="halfDays">0</div>
+                    </div>
+                    <div class="stat-card red">
+                        <p>Late Penalty (mins)</p>
+                        <div class="stat-value" id="latePenaltyMinutes">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Table -->
+            <div id="attendanceSection" class="attendance-table hidden">
+                <h2>📅 Attendance Details</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Clock In</th>
+                                <th>Clock Out</th>
+                                <th>OT Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Salary Breakdown -->
+            <div id="salarySection" class="salary-section hidden">
+                <h2>💵 Salary Breakdown</h2>
+                <div class="salary-grid">
+                    <!-- Credits -->
+                    <div class="salary-card credits">
+                        <h3>Credits</h3>
+                        <div id="creditsContent"></div>
+                    </div>
+
+                    <!-- Deductions -->
+                    <div class="salary-card deductions">
+                        <h3>Deductions</h3>
+                        <div id="deductionsContent"></div>
+                    </div>
+                </div>
+
+                <!-- Final Salary -->
+                <div class="final-salary">
+                    <p>FINAL SALARY</p>
+                    <div class="amount" id="finalAmount">Rs. 0</div>
+                    <div class="details" id="finalDetails"></div>
+                    <button class="upload-btn" id="downloadReportBtn" onclick="downloadPDFReport()" style="margin-top: 30px;">
+                        📄 Download PDF Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 30px 20px; background: #2c3e50; color: white; margin-top: 40px;">
+        <p style="font-size: 14px; margin-bottom: 5px;">© 2025 All Rights Reserved - HASSAAN</p>
+        <p style="font-size: 12px; opacity: 0.8;">Employee Salary Calculator System</p>
+    </div>
+
+    <script>
+        const config = {
+            employeeName: '',
+            baseSalary: 40000,
+            otRate: 150,
+            bonus: 5000,
+            foodDeduction: 14000,
+            paidLeaves: 2,
+            advanceAmount: 0,
+            workStartTime: 10,
+            workEndTime: 19,
+            otStartTime: 19
+        };
+
+        // Store processed data for recalculation
+        let processedData = null;
+
+        // Update config when inputs change and recalculate
+        document.getElementById('employeeName').addEventListener('input', (e) => {
+            config.employeeName = e.target.value;
+        });
+        document.getElementById('employeeName').addEventListener('change', (e) => {
+            config.employeeName = e.target.value;
+        });
+
+        document.getElementById('baseSalary').addEventListener('input', (e) => {
+            config.baseSalary = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('baseSalary').addEventListener('change', (e) => {
+            config.baseSalary = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        
+        document.getElementById('otRate').addEventListener('input', (e) => {
+            config.otRate = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('otRate').addEventListener('change', (e) => {
+            config.otRate = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        
+        document.getElementById('bonus').addEventListener('input', (e) => {
+            config.bonus = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('bonus').addEventListener('change', (e) => {
+            config.bonus = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        
+        document.getElementById('foodDeduction').addEventListener('input', (e) => {
+            config.foodDeduction = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('foodDeduction').addEventListener('change', (e) => {
+            config.foodDeduction = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        
+        document.getElementById('paidLeaves').addEventListener('input', (e) => {
+            config.paidLeaves = parseInt(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('paidLeaves').addEventListener('change', (e) => {
+            config.paidLeaves = parseInt(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+
+        document.getElementById('advanceAmount').addEventListener('input', (e) => {
+            config.advanceAmount = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+        document.getElementById('advanceAmount').addEventListener('change', (e) => {
+            config.advanceAmount = parseFloat(e.target.value) || 0;
+            recalculateIfDataExists();
+        });
+
+        function recalculateIfDataExists() {
+            if (processedData) {
+                displayResults(processedData.attendanceData, processedData.totalWorkDays, processedData.absentDays, processedData.totalOTHours, processedData.totalDaysInMonth, processedData.halfDayCount, processedData.totalLatePenaltyMinutes);
+                calculateSalary(processedData.totalWorkDays, processedData.totalOTHours, processedData.absentDays, processedData.totalDaysInMonth, processedData.halfDayCount, processedData.totalLatePenaltyMinutes);
+            }
+        }
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const uploadBox = document.getElementById('uploadBox');
+
+        fileInput.addEventListener('change', handleFileUpload);
+
+        // Drag and drop
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            showLoading();
+            hideError();
+            hideResults();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    processWorkbook(workbook);
+                } catch (error) {
+                    showError('Error reading file. Please ensure it is a valid Excel file.');
+                    console.error(error);
+                } finally {
+                    hideLoading();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function convertTimeToHHMM(timeValue) {
+            // Convert to HH.MM format (e.g., 20.49 means 20 hours 49 minutes)
+            if (typeof timeValue === 'number') {
+                return timeValue;
+            }
+            if (typeof timeValue === 'string') {
+                const parts = timeValue.split(/[:.]/);
+                if (parts.length >= 2) {
+                    return parseFloat(parts[0]) + parseFloat(parts[1]) / 100;
+                }
+                return parseFloat(timeValue);
+            }
+            return 0;
+        }
+
+        function calculateOTHours(inTime, outTime) {
+            const outHHMM = convertTimeToHHMM(outTime);
+            const otStartHHMM = 19.00; // 7 PM
+
+            if (outHHMM <= otStartHHMM) {
+                return 0;
+            }
+
+            // Calculate OT in HH.MM format
+            const outHours = Math.floor(outHHMM);
+            const outMinutes = Math.round((outHHMM - outHours) * 100);
+
+            const otStartHours = Math.floor(otStartHHMM);
+            const otStartMinutes = Math.round((otStartHHMM - otStartHours) * 100);
+
+            // Calculate difference
+            let otMinutesTotal = (outHours * 60 + outMinutes) - (otStartHours * 60 + otStartMinutes);
+            let otHoursResult = Math.floor(otMinutesTotal / 60);
+            let otMinutesResult = otMinutesTotal % 60;
+
+            // Return in HH.MM format
+            return otHoursResult + (otMinutesResult / 100);
+        }
+
+        function formatTime(hhmmValue) {
+            const hours = Math.floor(hhmmValue);
+            const minutes = Math.round((hhmmValue - hours) * 100);
+            return `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        function addOTHours(total, otToAdd) {
+            // Properly add two OT values in HH.MM format
+            const totalHours = Math.floor(total);
+            const totalMinutes = Math.round((total - totalHours) * 100);
+
+            const addHours = Math.floor(otToAdd);
+            const addMinutes = Math.round((otToAdd - addHours) * 100);
+
+            let sumMinutes = totalMinutes + addMinutes;
+            let sumHours = totalHours + addHours;
+
+            // Handle minute overflow
+            if (sumMinutes >= 60) {
+                sumHours += Math.floor(sumMinutes / 60);
+                sumMinutes = sumMinutes % 60;
+            }
+
+            return sumHours + (sumMinutes / 100);
+        }
+
+        function processWorkbook(workbook) {
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1,
+                defval: '',
+                raw: false
+            });
+
+            console.log('=== EXCEL FILE DEBUG ===');
+            console.log('First 10 rows of Excel:', jsonData.slice(0, 10));
+            console.log('=======================');
+
+            const attendanceData = [];
+            let totalOTHours = 0;
+            let totalWorkDays = 0;
+            let absentDays = 0;
+            let totalDaysInMonth = 0;
+            let halfDayCount = 0;
+            let totalLatePenaltyMinutes = 0;
+
+            // Debug array to track OT calculations
+            const otDebugLog = [];
+
+            // Get total days in month from row 1 (date range)
+            if (jsonData[1] && jsonData[1][1]) {
+                const dateRange = jsonData[1][1]; // e.g., "2025/09/01-2025/09/30"
+                const dateParts = dateRange.split('-');
+                if (dateParts.length === 2) {
+                    const endDate = dateParts[1].trim();
+                    const endDateParts = endDate.split('/');
+                    if (endDateParts.length === 3) {
+                        totalDaysInMonth = parseInt(endDateParts[2]) || 0;
+                    }
+                }
+            }
+
+            // Try to get absent days from different possible locations
+            // Try row 4 (index 4)
+            if (jsonData[4]) {
+                for (let col = 0; col < jsonData[4].length; col++) {
+                    const value = parseFloat(jsonData[4][col]);
+                    if (!isNaN(value) && value > 0) {
+                        absentDays = value;
+                        console.log('Found absent days in row 4, column', col, ':', absentDays);
+                        break;
+                    }
+                }
+            }
+
+            // Parse attendance records starting from row 9 (row 10 in Excel)
+            for (let i = 9; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                if (!row || !row[0] || row[0] === '') break;
+
+                const date = row[0];
+                const weekDay = row[1];
+                const clockIn = row[2];
+                const clockOut = row[3];
+
+                if (clockIn && clockOut) {
+                    const clockInHHMM = convertTimeToHHMM(clockIn);
+                    const clockOutHHMM = convertTimeToHHMM(clockOut);
+                    const otHours = calculateOTHours(clockIn, clockOut);
+                    const previousTotal = totalOTHours;
+                    totalOTHours = addOTHours(totalOTHours, otHours);
+
+                    // Log OT calculation for debugging
+                    otDebugLog.push({
+                        date: date,
+                        clockOut: formatTime(clockOutHHMM),
+                        otHHMM: otHours.toFixed(2),
+                        otMinutes: Math.floor(otHours) * 60 + Math.round((otHours - Math.floor(otHours)) * 100),
+                        runningTotal: totalOTHours.toFixed(2)
+                    });
+
+                    totalWorkDays++;
+
+                    // Check if it's a half day:
+                    // 1. Left at or before 5 PM (17.00)
+                    // 2. Arrived after 12 PM (12.00)
+                    const isHalfDay = clockOutHHMM <= 17.00 || clockInHHMM > 12.00;
+                    if (isHalfDay) {
+                        halfDayCount++;
+                    }
+
+                    // Calculate late penalty (if arrived after 10:30 AM and before 12:00 PM)
+                    // Penalty minutes are calculated from 10:00 AM
+                    let latePenaltyMinutes = 0;
+                    const lateThreshold = 10.30; // Penalty applies after 10:30 AM
+                    const latePenaltyCutoff = 12.00; // 12:00 PM
+                    const penaltyBaseTime = 10.00; // Penalty calculated from 10:00 AM
+
+                    if (clockInHHMM > lateThreshold && clockInHHMM < latePenaltyCutoff) {
+                        // Convert clock-in time to minutes
+                        const clockInHours = Math.floor(clockInHHMM);
+                        const clockInMinutes = Math.round((clockInHHMM - clockInHours) * 100);
+                        const clockInTotalMinutes = clockInHours * 60 + clockInMinutes;
+
+                        // Convert base time (10:00 AM) to minutes
+                        const baseHours = Math.floor(penaltyBaseTime);
+                        const baseTotalMinutes = baseHours * 60;
+
+                        // Calculate penalty from 10:00 AM
+                        latePenaltyMinutes = clockInTotalMinutes - baseTotalMinutes;
+                        totalLatePenaltyMinutes += latePenaltyMinutes;
+                    }
+
+                    attendanceData.push({
+                        date,
+                        weekDay,
+                        clockIn: clockInHHMM,
+                        clockOut: clockOutHHMM,
+                        otHours: otHours.toFixed(2),
+                        isHalfDay: isHalfDay,
+                        latePenaltyMinutes: latePenaltyMinutes,
+                        isAbsent: false
+                    });
+                } else {
+                    // Day with no clock in/out - mark as absent
+                    attendanceData.push({
+                        date,
+                        weekDay,
+                        clockIn: null,
+                        clockOut: null,
+                        otHours: '0.00',
+                        isHalfDay: false,
+                        latePenaltyMinutes: 0,
+                        isAbsent: true
+                    });
+                }
+            }
+
+            // If absent days not found in row 4, calculate from total days - work days
+            if (absentDays === 0 && totalDaysInMonth > 0) {
+                absentDays = totalDaysInMonth - totalWorkDays;
+                console.log('Calculated absent days:', totalDaysInMonth, '-', totalWorkDays, '=', absentDays);
+            }
+
+            console.log('Final absent days:', absentDays);
+
+            console.log('\n========================================');
+            console.log('📊 OT CALCULATION BREAKDOWN');
+            console.log('========================================');
+            console.table(otDebugLog);
+
+            console.log('\n=== FINAL OT SUMMARY ===');
+            console.log('Total OT (HH.MM format):', totalOTHours.toFixed(2));
+
+            // Convert total OT to minutes for verification
+            const debugOTHoursInt = Math.floor(totalOTHours);
+            const debugOTMinutes = Math.round((totalOTHours - debugOTHoursInt) * 100);
+            const debugOTTotalMinutes = debugOTHoursInt * 60 + debugOTMinutes;
+
+            console.log('Total OT (Hours:Minutes):', `${debugOTHoursInt}h ${debugOTMinutes}m`);
+            console.log('Total OT (Minutes):', debugOTTotalMinutes, 'minutes');
+            console.log('OT Payment Calculation:', `${debugOTTotalMinutes} mins × Rs.2.50 = Rs.${(debugOTTotalMinutes * 2.50).toFixed(2)}`);
+            console.log('========================================\n');
+
+            // Store processed data for recalculation
+            processedData = {
+                attendanceData,
+                totalWorkDays,
+                absentDays,
+                totalOTHours,
+                totalDaysInMonth,
+                halfDayCount,
+                totalLatePenaltyMinutes
+            };
+
+            displayResults(attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes);
+            calculateSalary(totalWorkDays, totalOTHours, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes);
+        }
+
+        function displayResults(attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes) {
+            // Calculate paid leaves and unpaid absents
+            const paidLeavesUsed = Math.min(absentDays, config.paidLeaves);
+            const unpaidAbsents = Math.max(0, absentDays - config.paidLeaves);
+
+            // Update stats
+            document.getElementById('totalDaysInMonth').textContent = totalDaysInMonth;
+            document.getElementById('totalWorkDays').textContent = totalWorkDays;
+            document.getElementById('absentDays').textContent = absentDays;
+            document.getElementById('totalOTHours').textContent = totalOTHours.toFixed(2);
+            document.getElementById('paidLeavesUsed').textContent = paidLeavesUsed;
+            document.getElementById('unpaidAbsents').textContent = unpaidAbsents;
+            document.getElementById('halfDays').textContent = halfDayCount;
+            document.getElementById('latePenaltyMinutes').textContent = totalLatePenaltyMinutes;
+            document.getElementById('statsSection').classList.remove('hidden');
+
+            // Update attendance table
+            const tableBody = document.getElementById('attendanceTableBody');
+            tableBody.innerHTML = '';
+
+            attendanceData.forEach(record => {
+                const row = document.createElement('tr');
+
+                if (record.isAbsent) {
+                    // Display absent row
+                    row.style.backgroundColor = '#ffe6e6';
+                    row.innerHTML = `
+                        <td>${record.date}</td>
+                        <td>${record.weekDay}</td>
+                        <td colspan="3" style="text-align: center; color: #dc3545; font-weight: bold;">❌ ABSENT</td>
+                    `;
+                } else {
+                    // Display working day row
+                    const halfDayReason = record.isHalfDay ?
+                        (record.clockOut <= 17.00 ? 'Left ≤5PM' : record.clockIn > 12.00 ? 'Arrived >12PM' : '') : '';
+                    const lateWarning = record.latePenaltyMinutes > 0 ? `<span style="color: #ff6b6b; font-weight: bold;">⏰ Late ${record.latePenaltyMinutes}m</span>` : '';
+                    row.innerHTML = `
+                        <td>${record.date}</td>
+                        <td>${record.weekDay}</td>
+                        <td>${formatTime(record.clockIn)} ${lateWarning} ${record.clockIn > 12.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
+                        <td>${formatTime(record.clockOut)} ${record.clockOut <= 17.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
+                        <td style="color: #667eea; font-weight: bold;">${record.otHours} ${record.isHalfDay ? `<br><span style="color: #dc3545; font-size: 0.85em;">${halfDayReason}</span>` : ''}</td>
+                    `;
+                }
+
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById('attendanceSection').classList.remove('hidden');
+        }
+
+        function calculateSalary(workDays, otHours, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes) {
+            // Calculate per day salary: Base Salary / (Total Days - Paid Leaves)
+            const effectiveWorkingDays = totalDaysInMonth - config.paidLeaves;
+            const perDaySalary = config.baseSalary / effectiveWorkingDays;
+
+            // Calculate paid leaves and unpaid absents
+            const paidLeavesUsed = Math.min(absentDays, config.paidLeaves);
+            const unpaidAbsents = Math.max(0, absentDays - config.paidLeaves);
+
+            // Deduct salary only for unpaid absents
+            const absentDeduction = perDaySalary * unpaidAbsents;
+
+            // Calculate half day deduction (half of per day salary for each half day)
+            const halfDayDeduction = (perDaySalary / 2) * halfDayCount;
+
+            // Calculate late penalty deduction (OT rate per minute × total late minutes)
+            const latePenaltyDeduction = (config.otRate / 60) * totalLatePenaltyMinutes;
+
+            // Convert OT from HH.MM to total minutes for payment calculation
+            const otHoursInt = Math.floor(otHours);
+            const otMinutes = Math.round((otHours - otHoursInt) * 100);
+            const otTotalMinutes = otHoursInt * 60 + otMinutes;
+            const otDecimalHours = otHoursInt + (otMinutes / 60);
+
+            const otPayment = otTotalMinutes * 2.50;
+            const bonus = absentDays === 0 ? config.bonus : 0;
+            const totalCredits = config.baseSalary + otPayment + bonus;
+
+            const deductions = {
+                food: config.foodDeduction,
+                absent: absentDeduction,
+                advance: config.advanceAmount,
+                halfDay: halfDayDeduction,
+                latePenalty: latePenaltyDeduction
+            };
+
+            const totalDeductions = Object.values(deductions).reduce((sum, val) => sum + val, 0);
+            const finalSalary = totalCredits - totalDeductions;
+
+            // Debug logging
+            console.log('=== SALARY CALCULATION DEBUG ===');
+            console.log('Total Days in Month:', totalDaysInMonth);
+            console.log('Paid Leaves Allowed:', config.paidLeaves);
+            console.log('Effective Working Days:', effectiveWorkingDays);
+            console.log('Per Day Salary:', perDaySalary.toFixed(2));
+            console.log('Absent Days:', absentDays);
+            console.log('Paid Leaves Used:', paidLeavesUsed);
+            console.log('Unpaid Absents:', unpaidAbsents);
+            console.log('Absent Deduction:', absentDeduction.toFixed(2));
+            console.log('Half Days:', halfDayCount);
+            console.log('Half Day Deduction:', halfDayDeduction.toFixed(2));
+            console.log('Late Penalty Minutes:', totalLatePenaltyMinutes);
+            console.log('Late Penalty Deduction:', latePenaltyDeduction.toFixed(2));
+            console.log('================================');
+
+            // Display credits
+            const creditsHTML = `
+                <div class="salary-row">
+                    <span>Base Salary</span>
+                    <span><strong>Rs. ${config.baseSalary.toLocaleString()}</strong></span>
+                </div>
+                <div class="salary-row">
+                    <span>OT Payment (${otTotalMinutes} mins × Rs.2.50)</span>
+                    <span><strong>Rs. ${otPayment.toFixed(2)}</strong></span>
+                </div>
+                <div class="salary-row">
+                    <span>Full Attendance Bonus ${absentDays === 0 ? '✓' : '✗'}</span>
+                    <span><strong>Rs. ${bonus.toFixed(2)}</strong></span>
+                </div>
+                ${paidLeavesUsed > 0 ? `
+                <div class="salary-row" style="color: #28a745; font-size: 0.9em;">
+                    <span>ℹ️ Paid Leaves Used: ${paidLeavesUsed} days</span>
+                    <span><strong>Included in Base</strong></span>
+                </div>` : ''}
+                <div class="salary-row total" style="color: #155724; border-color: #155724;">
+                    <span>Total Credits</span>
+                    <span>Rs. ${totalCredits.toFixed(2)}</span>
+                </div>
+            `;
+            document.getElementById('creditsContent').innerHTML = creditsHTML;
+
+            // Display deductions
+            const deductionsHTML = `
+                <div class="salary-row">
+                    <span>Food Deduction</span>
+                    <span><strong>Rs. ${deductions.food.toFixed(2)}</strong></span>
+                </div>
+                ${unpaidAbsents > 0 ? `
+                <div class="salary-row">
+                    <span>Absent Deduction (${unpaidAbsents} days × Rs.${perDaySalary.toFixed(2)})</span>
+                    <span><strong>Rs. ${deductions.absent.toFixed(2)}</strong></span>
+                </div>` : ''}
+                ${halfDayCount > 0 ? `
+                <div class="salary-row">
+                    <span>Half Day Deduction (${halfDayCount} days × Rs.${(perDaySalary / 2).toFixed(2)})</span>
+                    <span><strong>Rs. ${deductions.halfDay.toFixed(2)}</strong></span>
+                </div>` : ''}
+                ${config.advanceAmount > 0 ? `
+                <div class="salary-row">
+                    <span>Advance</span>
+                    <span><strong>Rs. ${deductions.advance.toFixed(2)}</strong></span>
+                </div>` : ''}
+                ${totalLatePenaltyMinutes > 0 ? `
+                <div class="salary-row">
+                    <span>Late Penalty (${totalLatePenaltyMinutes} mins × Rs.${(config.otRate / 60).toFixed(2)}/min)</span>
+                    <span><strong>Rs. ${deductions.latePenalty.toFixed(2)}</strong></span>
+                </div>` : ''}
+                <div class="salary-row total" style="color: #721c24; border-color: #721c24;">
+                    <span>Total Deductions</span>
+                    <span>Rs. ${totalDeductions.toFixed(2)}</span>
+                </div>
+            `;
+            document.getElementById('deductionsContent').innerHTML = deductionsHTML;
+
+            // Display final salary
+            document.getElementById('finalAmount').textContent = `Rs. ${finalSalary.toFixed(2).toLocaleString()}`;
+            document.getElementById('finalDetails').innerHTML = `
+                ${workDays} working days | ${otDecimalHours.toFixed(2)} OT hours
+                ${paidLeavesUsed > 0 ? ` | ${paidLeavesUsed} paid leaves` : ''}
+                ${unpaidAbsents > 0 ? ` | ${unpaidAbsents} unpaid absents` : ''}
+                ${halfDayCount > 0 ? ` | ${halfDayCount} half days` : ''}
+            `;
+
+            document.getElementById('salarySection').classList.remove('hidden');
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.add('hidden');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        function hideResults() {
+            document.getElementById('statsSection').classList.add('hidden');
+            document.getElementById('attendanceSection').classList.add('hidden');
+            document.getElementById('salarySection').classList.add('hidden');
+        }
+
+        function downloadPDFReport() {
+            if (!processedData) {
+                alert('Please upload an attendance file first!');
+                return;
+            }
+
+            const { attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes } = processedData;
+
+            // Calculate all values
+            const effectiveWorkingDays = totalDaysInMonth - config.paidLeaves;
+            const perDaySalary = config.baseSalary / effectiveWorkingDays;
+            const paidLeavesUsed = Math.min(absentDays, config.paidLeaves);
+            const unpaidAbsents = Math.max(0, absentDays - config.paidLeaves);
+            const absentDeduction = perDaySalary * unpaidAbsents;
+            const halfDayDeduction = (perDaySalary / 2) * halfDayCount;
+            const latePenaltyDeduction = (config.otRate / 60) * totalLatePenaltyMinutes;
+
+            const otHoursInt = Math.floor(totalOTHours);
+            const otMinutes = Math.round((totalOTHours - otHoursInt) * 100);
+            const otTotalMinutes = otHoursInt * 60 + otMinutes;
+            const otDecimalHours = otHoursInt + (otMinutes / 60);
+            const otPayment = otTotalMinutes * 2.50;
+            const bonus = absentDays === 0 ? config.bonus : 0;
+
+            const totalCredits = config.baseSalary + otPayment + bonus;
+            const totalDeductions = config.foodDeduction + absentDeduction + config.advanceAmount + halfDayDeduction + latePenaltyDeduction;
+            const finalSalary = totalCredits - totalDeductions;
+
+            // Get current date
+            const currentDate = new Date().toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Initialize jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            let yPos = 20;
+
+            // Header
+            doc.setFillColor(102, 126, 234);
+            doc.rect(0, 0, 210, 50, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.text('EMPLOYEE SALARY REPORT', 105, 18, { align: 'center' });
+
+            // Employee Name
+            if (config.employeeName && config.employeeName.trim() !== '') {
+                doc.setFontSize(16);
+                doc.text('Employee: ' + config.employeeName, 105, 30, { align: 'center' });
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'normal');
+                doc.text('Generated on ' + currentDate, 105, 40, { align: 'center' });
+            } else {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text('Generated on ' + currentDate, 105, 30, { align: 'center' });
+            }
+
+            yPos = 60;
+            doc.setTextColor(0, 0, 0);
+
+            // Configuration Section
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Configuration Details', 14, yPos);
+            yPos += 10;
+
+            const configBody = [];
+            if (config.employeeName && config.employeeName.trim() !== '') {
+                configBody.push(['Employee Name', config.employeeName]);
+            }
+            configBody.push(
+                ['Base Salary', 'Rs. ' + config.baseSalary.toLocaleString()],
+                ['OT Rate/Minute', 'Rs. 2.50'],
+                ['Full Attendance Bonus', 'Rs. ' + config.bonus.toLocaleString()],
+                ['Food Deduction', 'Rs. ' + config.foodDeduction.toLocaleString()],
+                ['Paid Leaves Allowed', config.paidLeaves + ' days'],
+                ['Advance Given', 'Rs. ' + config.advanceAmount.toLocaleString()]
+            );
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Parameter', 'Value']],
+                body: configBody,
+                theme: 'grid',
+                headStyles: { fillColor: [102, 126, 234] },
+                margin: { left: 14, right: 14 }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+
+            // Attendance Summary
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Attendance Summary', 14, yPos);
+            yPos += 10;
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Metric', 'Value']],
+                body: [
+                    ['Total Days in Month', totalDaysInMonth],
+                    ['Total Work Days', totalWorkDays],
+                    ['Absent Days', absentDays],
+                    ['Paid Leaves Used', paidLeavesUsed],
+                    ['Unpaid Absents', unpaidAbsents],
+                    ['Half Days', halfDayCount],
+                    ['Total OT', otHoursInt + 'h ' + otMinutes + 'm (' + otTotalMinutes + ' mins)'],
+                    ['Late Penalty Minutes', totalLatePenaltyMinutes + ' minutes']
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [102, 126, 234] },
+                margin: { left: 14, right: 14 }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+
+            // Check if we need a new page
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Daily OT Breakdown
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Daily OT Breakdown', 14, yPos);
+            yPos += 10;
+
+            const otTableData = [];
+            attendanceData.forEach(record => {
+                if (!record.isAbsent && parseFloat(record.otHours) > 0) {
+                    const otHrs = Math.floor(parseFloat(record.otHours));
+                    const otMins = Math.round((parseFloat(record.otHours) - otHrs) * 100);
+                    const otMinsTotal = otHrs * 60 + otMins;
+                    const otAmt = otMinsTotal * 2.50;
+
+                    let remarks = [];
+                    if (record.isHalfDay) {
+                        if (record.clockOut <= 17.00) remarks.push('Half Day (Left ≤5PM)');
+                        if (record.clockIn > 12.00) remarks.push('Half Day (>12PM)');
+                    }
+                    if (record.latePenaltyMinutes > 0) {
+                        remarks.push('Late ' + record.latePenaltyMinutes + 'm');
+                    }
+
+                    otTableData.push([
+                        record.date,
+                        record.weekDay,
+                        formatTime(record.clockIn),
+                        formatTime(record.clockOut),
+                        otHrs + 'h ' + otMins + 'm',
+                        otMinsTotal + ' mins',
+                        'Rs. ' + otAmt.toFixed(2),
+                        remarks.join(', ') || '-'
+                    ]);
+                }
+            });
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Date', 'Day', 'Clock In', 'Clock Out', 'OT Time', 'OT Mins', 'OT Amount', 'Remarks']],
+                body: otTableData,
+                theme: 'striped',
+                headStyles: { fillColor: [102, 126, 234], fontSize: 9 },
+                bodyStyles: { fontSize: 8 },
+                margin: { left: 14, right: 14 },
+                columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 18 },
+                    2: { cellWidth: 20 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 20 },
+                    5: { cellWidth: 20 },
+                    6: { cellWidth: 25 },
+                    7: { cellWidth: 39 }
+                }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+
+            // Check if we need a new page
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Salary Calculation
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Salary Calculation', 14, yPos);
+            yPos += 10;
+
+            // Credits
+            doc.autoTable({
+                startY: yPos,
+                head: [['Credits', 'Amount']],
+                body: [
+                    ['Base Salary', 'Rs. ' + config.baseSalary.toLocaleString()],
+                    ['OT Payment (' + otTotalMinutes + ' mins × Rs.2.50)', 'Rs. ' + otPayment.toFixed(2)],
+                    ['Full Attendance Bonus ' + (absentDays === 0 ? '✓' : '✗'), 'Rs. ' + bonus.toFixed(2)],
+                    ...(paidLeavesUsed > 0 ? [['Paid Leaves Used: ' + paidLeavesUsed + ' days', 'Included in Base']] : []),
+                    ['TOTAL CREDITS', 'Rs. ' + totalCredits.toFixed(2)]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [40, 167, 69] },
+                margin: { left: 14, right: 14 },
+                footStyles: { fillColor: [40, 167, 69], fontStyle: 'bold' }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 10;
+
+            // Deductions
+            const deductionRows = [
+                ['Food Deduction', 'Rs. ' + config.foodDeduction.toFixed(2)]
+            ];
+            if (unpaidAbsents > 0) {
+                deductionRows.push(['Absent Deduction (' + unpaidAbsents + ' days × Rs.' + perDaySalary.toFixed(2) + ')', 'Rs. ' + absentDeduction.toFixed(2)]);
+            }
+            if (halfDayCount > 0) {
+                deductionRows.push(['Half Day Deduction (' + halfDayCount + ' days × Rs.' + (perDaySalary / 2).toFixed(2) + ')', 'Rs. ' + halfDayDeduction.toFixed(2)]);
+            }
+            if (config.advanceAmount > 0) {
+                deductionRows.push(['Advance', 'Rs. ' + config.advanceAmount.toFixed(2)]);
+            }
+            if (totalLatePenaltyMinutes > 0) {
+                deductionRows.push(['Late Penalty (' + totalLatePenaltyMinutes + ' mins × Rs.' + (config.otRate / 60).toFixed(2) + '/min)', 'Rs. ' + latePenaltyDeduction.toFixed(2)]);
+            }
+            deductionRows.push(['TOTAL DEDUCTIONS', 'Rs. ' + totalDeductions.toFixed(2)]);
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Deductions', 'Amount']],
+                body: deductionRows,
+                theme: 'grid',
+                headStyles: { fillColor: [220, 53, 69] },
+                margin: { left: 14, right: 14 },
+                footStyles: { fillColor: [220, 53, 69], fontStyle: 'bold' }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+
+            // Check if we need a new page for final salary
+            if (yPos > 220) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Final Salary Calculation Section
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('Final Salary Calculation', 14, yPos);
+            yPos += 10;
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Description', 'Amount']],
+                body: [
+                    ['Total Credits', 'Rs. ' + totalCredits.toFixed(2)],
+                    ['Total Deductions', '- Rs. ' + totalDeductions.toFixed(2)],
+                    ['FINAL SALARY (Credits - Deductions)', 'Rs. ' + finalSalary.toFixed(2)]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [102, 126, 234] },
+                margin: { left: 14, right: 14 },
+                didParseCell: function (data) {
+                    // Highlight the final row
+                    if (data.row.index === 2) {
+                        data.cell.styles.fillColor = [102, 126, 234];
+                        data.cell.styles.textColor = [255, 255, 255];
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fontSize = 14;
+                    }
+                }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+
+            // Final Salary Box
+            doc.setFillColor(102, 126, 234);
+            doc.rect(14, yPos, 182, 35, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('FINAL SALARY TO BE PAID', 105, yPos + 12, { align: 'center' });
+            doc.setFontSize(32);
+            doc.text('Rs. ' + finalSalary.toFixed(2), 105, yPos + 28, { align: 'center' });
+
+            yPos += 45;
+            doc.setTextColor(0, 0, 0);
+
+            // Formulas Section
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Calculation Formulas', 14, yPos);
+            yPos += 10;
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Formula', 'Calculation']],
+                body: [
+                    ['Effective Working Days', totalDaysInMonth + ' - ' + config.paidLeaves + ' = ' + effectiveWorkingDays + ' days'],
+                    ['Per Day Salary', 'Rs.' + config.baseSalary + ' ÷ ' + effectiveWorkingDays + ' = Rs.' + perDaySalary.toFixed(2)],
+                    ['Half Day Rate', 'Rs.' + perDaySalary.toFixed(2) + ' ÷ 2 = Rs.' + (perDaySalary / 2).toFixed(2)],
+                    ['Late Penalty Rate', 'Rs.' + config.otRate + ' ÷ 60 = Rs.' + (config.otRate / 60).toFixed(2) + '/min']
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [102, 126, 234] },
+                margin: { left: 14, right: 14 }
+            });
+
+            // Footer
+            yPos = doc.internal.pageSize.height - 20;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(100, 100, 100);
+            doc.text('This is an auto-generated salary report.', 105, yPos, { align: 'center' });
+            doc.text('© 2025 All Rights Reserved - HASSAAN', 105, yPos + 5, { align: 'center' });
+
+            // Save PDF
+            doc.save('Salary_Report_' + new Date().toISOString().split('T')[0] + '.pdf');
+        }
+
+        function downloadReport() {
+            if (!processedData) {
+                alert('Please upload an attendance file first!');
+                return;
+            }
+
+            const { attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes } = processedData;
+
+            // Calculate all values
+            const effectiveWorkingDays = totalDaysInMonth - config.paidLeaves;
+            const perDaySalary = config.baseSalary / effectiveWorkingDays;
+            const paidLeavesUsed = Math.min(absentDays, config.paidLeaves);
+            const unpaidAbsents = Math.max(0, absentDays - config.paidLeaves);
+            const absentDeduction = perDaySalary * unpaidAbsents;
+            const halfDayDeduction = (perDaySalary / 2) * halfDayCount;
+            const latePenaltyDeduction = (config.otRate / 60) * totalLatePenaltyMinutes;
+
+            const otHoursInt = Math.floor(totalOTHours);
+            const otMinutes = Math.round((totalOTHours - otHoursInt) * 100);
+            const otTotalMinutes = otHoursInt * 60 + otMinutes;
+            const otDecimalHours = otHoursInt + (otMinutes / 60);
+            const otPayment = otTotalMinutes * 2.50;
+            const bonus = absentDays === 0 ? config.bonus : 0;
+
+            const totalCredits = config.baseSalary + otPayment + bonus;
+            const totalDeductions = config.foodDeduction + absentDeduction + config.advanceAmount + halfDayDeduction + latePenaltyDeduction;
+            const finalSalary = totalCredits - totalDeductions;
+
+            // Get current date
+            const currentDate = new Date().toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // Build HTML report
+            let reportHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Salary Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #fff;
+            color: #000;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 28px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 14px;
+            color: #666;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .section h2 {
+            background: #667eea;
+            color: white;
+            padding: 10px 15px;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-left: 3px solid #667eea;
+        }
+        .info-item label {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 3px;
+        }
+        .info-item span {
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .summary-box {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .summary-row.total {
+            font-size: 18px;
+            font-weight: bold;
+            border-top: 2px solid #667eea;
+            border-bottom: none;
+            margin-top: 10px;
+            padding-top: 15px;
+        }
+        .credits { color: #28a745; }
+        .deductions { color: #dc3545; }
+        .final-amount {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        .final-amount h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        .final-amount .amount {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        .late-warning { color: #dc3545; font-weight: bold; font-size: 11px; }
+        .half-day-warning { color: #ff6b6b; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💰 EMPLOYEE SALARY REPORT</h1>
+        <p>Generated on ${currentDate}</p>
+    </div>
+
+    <div class="section">
+        <h2>📋 Configuration Details</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Base Salary:</label>
+                <span>Rs. ${config.baseSalary.toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+                <label>OT Rate/Hour:</label>
+                <span>Rs. ${config.otRate}</span>
+            </div>
+            <div class="info-item">
+                <label>Full Attendance Bonus:</label>
+                <span>Rs. ${config.bonus.toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+                <label>Food Deduction:</label>
+                <span>Rs. ${config.foodDeduction.toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+                <label>Paid Leaves Allowed:</label>
+                <span>${config.paidLeaves} days</span>
+            </div>
+            <div class="info-item">
+                <label>Advance Given:</label>
+                <span>Rs. ${config.advanceAmount.toLocaleString()}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Attendance Summary</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Total Days in Month:</label>
+                <span>${totalDaysInMonth}</span>
+            </div>
+            <div class="info-item">
+                <label>Total Work Days:</label>
+                <span>${totalWorkDays}</span>
+            </div>
+            <div class="info-item">
+                <label>Absent Days:</label>
+                <span>${absentDays}</span>
+            </div>
+            <div class="info-item">
+                <label>Paid Leaves Used:</label>
+                <span>${paidLeavesUsed}</span>
+            </div>
+            <div class="info-item">
+                <label>Unpaid Absents:</label>
+                <span>${unpaidAbsents}</span>
+            </div>
+            <div class="info-item">
+                <label>Half Days:</label>
+                <span>${halfDayCount}</span>
+            </div>
+            <div class="info-item">
+                <label>Total OT Hours:</label>
+                <span>${otDecimalHours.toFixed(2)} hours</span>
+            </div>
+            <div class="info-item">
+                <label>Late Penalty Minutes:</label>
+                <span>${totalLatePenaltyMinutes} minutes</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📅 Daily Attendance Details</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>OT Hours</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+`;
+
+            attendanceData.forEach(record => {
+                if (record.isAbsent) {
+                    reportHTML += `
+                <tr style="background-color: #ffe6e6;">
+                    <td>${record.date}</td>
+                    <td>${record.weekDay}</td>
+                    <td colspan="4" style="text-align: center; color: #dc3545; font-weight: bold;">ABSENT</td>
+                </tr>
+`;
+                } else {
+                    const remarks = [];
+                    if (record.isHalfDay) {
+                        if (record.clockOut <= 17.00) remarks.push('Half Day (Left ≤5PM)');
+                        if (record.clockIn > 12.00) remarks.push('Half Day (Arrived >12PM)');
+                    }
+                    if (record.latePenaltyMinutes > 0) {
+                        remarks.push(`Late ${record.latePenaltyMinutes}m`);
+                    }
+                    reportHTML += `
+                <tr>
+                    <td>${record.date}</td>
+                    <td>${record.weekDay}</td>
+                    <td>${formatTime(record.clockIn)}</td>
+                    <td>${formatTime(record.clockOut)}</td>
+                    <td>${record.otHours}</td>
+                    <td>${remarks.join(', ') || '-'}</td>
+                </tr>
+`;
+                }
+            });
+
+            reportHTML += `
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>💵 Salary Calculation</h2>
+
+        <div class="summary-box">
+            <h3 style="color: #28a745; margin-bottom: 15px;">Credits</h3>
+            <div class="summary-row">
+                <span>Base Salary</span>
+                <span class="credits">Rs. ${config.baseSalary.toLocaleString()}</span>
+            </div>
+            <div class="summary-row">
+                <span>OT Payment (${otTotalMinutes} mins × Rs.2.50)</span>
+                <span class="credits">Rs. ${otPayment.toFixed(2)}</span>
+            </div>
+            <div class="summary-row">
+                <span>Full Attendance Bonus ${absentDays === 0 ? '✓' : '✗'}</span>
+                <span class="credits">Rs. ${bonus.toFixed(2)}</span>
+            </div>
+            ${paidLeavesUsed > 0 ? `
+            <div class="summary-row" style="font-size: 13px; color: #28a745;">
+                <span>ℹ️ Paid Leaves Used: ${paidLeavesUsed} days</span>
+                <span>Included in Base</span>
+            </div>` : ''}
+            <div class="summary-row total credits">
+                <span>Total Credits</span>
+                <span>Rs. ${totalCredits.toFixed(2)}</span>
+            </div>
+        </div>
+
+        <div class="summary-box" style="margin-top: 20px;">
+            <h3 style="color: #dc3545; margin-bottom: 15px;">Deductions</h3>
+            <div class="summary-row">
+                <span>Food Deduction</span>
+                <span class="deductions">Rs. ${config.foodDeduction.toFixed(2)}</span>
+            </div>
+            ${unpaidAbsents > 0 ? `
+            <div class="summary-row">
+                <span>Absent Deduction (${unpaidAbsents} days × Rs.${perDaySalary.toFixed(2)})</span>
+                <span class="deductions">Rs. ${absentDeduction.toFixed(2)}</span>
+            </div>` : ''}
+            ${halfDayCount > 0 ? `
+            <div class="summary-row">
+                <span>Half Day Deduction (${halfDayCount} days × Rs.${(perDaySalary / 2).toFixed(2)})</span>
+                <span class="deductions">Rs. ${halfDayDeduction.toFixed(2)}</span>
+            </div>` : ''}
+            ${config.advanceAmount > 0 ? `
+            <div class="summary-row">
+                <span>Advance</span>
+                <span class="deductions">Rs. ${config.advanceAmount.toFixed(2)}</span>
+            </div>` : ''}
+            ${totalLatePenaltyMinutes > 0 ? `
+            <div class="summary-row">
+                <span>Late Penalty (${totalLatePenaltyMinutes} mins × Rs.${(config.otRate / 60).toFixed(2)}/min)</span>
+                <span class="deductions">Rs. ${latePenaltyDeduction.toFixed(2)}</span>
+            </div>` : ''}
+            <div class="summary-row total deductions">
+                <span>Total Deductions</span>
+                <span>Rs. ${totalDeductions.toFixed(2)}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="final-amount">
+        <h3>FINAL SALARY</h3>
+        <div class="amount">Rs. ${finalSalary.toFixed(2).toLocaleString()}</div>
+        <p style="margin-top: 15px; opacity: 0.9;">
+            ${totalWorkDays} working days | ${otDecimalHours.toFixed(2)} OT hours
+            ${paidLeavesUsed > 0 ? ` | ${paidLeavesUsed} paid leaves` : ''}
+            ${unpaidAbsents > 0 ? ` | ${unpaidAbsents} unpaid absents` : ''}
+            ${halfDayCount > 0 ? ` | ${halfDayCount} half days` : ''}
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>📝 Calculation Formulas</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Effective Working Days:</label>
+                <span>${totalDaysInMonth} - ${config.paidLeaves} = ${effectiveWorkingDays} days</span>
+            </div>
+            <div class="info-item">
+                <label>Per Day Salary:</label>
+                <span>Rs.${config.baseSalary} ÷ ${effectiveWorkingDays} = Rs.${perDaySalary.toFixed(2)}</span>
+            </div>
+            <div class="info-item">
+                <label>Half Day Rate:</label>
+                <span>Rs.${perDaySalary.toFixed(2)} ÷ 2 = Rs.${(perDaySalary / 2).toFixed(2)}</span>
+            </div>
+            <div class="info-item">
+                <label>Late Penalty Rate:</label>
+                <span>Rs.${config.otRate} ÷ 60 = Rs.${(config.otRate / 60).toFixed(2)}/min</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 2px solid #ddd; color: #666;">
+        <p>This is an auto-generated salary report.</p>
+        <p style="margin-top: 5px;">Generated using Employee Salary Calculator</p>
+        <p style="margin-top: 15px; font-size: 14px; font-weight: bold;">© 2025 All Rights Reserved - HASSAAN</p>
+    </div>
+</body>
+</html>
+`;
+
+            // Create blob and download
+            const blob = new Blob([reportHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Salary_Report_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
