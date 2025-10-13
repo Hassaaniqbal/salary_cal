@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Salary Calculator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -374,10 +372,6 @@
             <h2>⚙️ Salary Configuration</h2>
             <div class="config-grid">
                 <div class="config-item">
-                    <label>Employee Name</label>
-                    <input type="text" id="employeeName" placeholder="Enter employee name">
-                </div>
-                <div class="config-item">
                     <label>Base Salary</label>
                     <input type="number" id="baseSalary" value="40000">
                 </div>
@@ -508,8 +502,8 @@
                     <p>FINAL SALARY</p>
                     <div class="amount" id="finalAmount">Rs. 0</div>
                     <div class="details" id="finalDetails"></div>
-                    <button class="upload-btn" id="downloadReportBtn" onclick="downloadPDFReport()" style="margin-top: 30px;">
-                        📄 Download PDF Report
+                    <button class="upload-btn" id="downloadReportBtn" onclick="downloadReport()" style="margin-top: 30px;">
+                        📄 Download Salary Report
                     </button>
                 </div>
             </div>
@@ -524,7 +518,6 @@
 
     <script>
         const config = {
-            employeeName: '',
             baseSalary: 40000,
             otRate: 150,
             bonus: 5000,
@@ -540,13 +533,6 @@
         let processedData = null;
 
         // Update config when inputs change and recalculate
-        document.getElementById('employeeName').addEventListener('input', (e) => {
-            config.employeeName = e.target.value;
-        });
-        document.getElementById('employeeName').addEventListener('change', (e) => {
-            config.employeeName = e.target.value;
-        });
-
         document.getElementById('baseSalary').addEventListener('input', (e) => {
             config.baseSalary = parseFloat(e.target.value) || 0;
             recalculateIfDataExists();
@@ -604,7 +590,7 @@
         function recalculateIfDataExists() {
             if (processedData) {
                 displayResults(processedData.attendanceData, processedData.totalWorkDays, processedData.absentDays, processedData.totalOTHours, processedData.totalDaysInMonth, processedData.halfDayCount, processedData.totalLatePenaltyMinutes);
-                calculateSalary(processedData.totalWorkDays, processedData.totalOTHours, processedData.absentDays, processedData.totalDaysInMonth, processedData.halfDayCount, processedData.totalLatePenaltyMinutes);
+                calculateSalary(processedData.totalWorkDays, processedData.totalOTMinutes, processedData.absentDays, processedData.totalDaysInMonth, processedData.halfDayCount, processedData.totalLatePenaltyMinutes);
             }
         }
 
@@ -691,7 +677,9 @@
             const otStartHours = Math.floor(otStartHHMM);
             const otStartMinutes = Math.round((otStartHHMM - otStartHours) * 100);
 
-            // Calculate difference
+            console.log(`🔍 OT Calc Detail: ClockOut=${outTime} → ${outHHMM} → ${outHours}h ${outMinutes}m → Total: ${(outHours * 60 + outMinutes)} mins | OT Start: 1140 mins | Difference: ${(outHours * 60 + outMinutes) - 1140} mins`);
+
+            // Calculate difference in minutes
             let otMinutesTotal = (outHours * 60 + outMinutes) - (otStartHours * 60 + otStartMinutes);
             let otHoursResult = Math.floor(otMinutesTotal / 60);
             let otMinutesResult = otMinutesTotal % 60;
@@ -704,26 +692,6 @@
             const hours = Math.floor(hhmmValue);
             const minutes = Math.round((hhmmValue - hours) * 100);
             return `${hours}:${minutes.toString().padStart(2, '0')}`;
-        }
-
-        function addOTHours(total, otToAdd) {
-            // Properly add two OT values in HH.MM format
-            const totalHours = Math.floor(total);
-            const totalMinutes = Math.round((total - totalHours) * 100);
-
-            const addHours = Math.floor(otToAdd);
-            const addMinutes = Math.round((otToAdd - addHours) * 100);
-
-            let sumMinutes = totalMinutes + addMinutes;
-            let sumHours = totalHours + addHours;
-
-            // Handle minute overflow
-            if (sumMinutes >= 60) {
-                sumHours += Math.floor(sumMinutes / 60);
-                sumMinutes = sumMinutes % 60;
-            }
-
-            return sumHours + (sumMinutes / 100);
         }
 
         function processWorkbook(workbook) {
@@ -741,14 +709,13 @@
 
             const attendanceData = [];
             let totalOTHours = 0;
+            let totalOTMinutesAccumulator = 0; // Track actual total minutes correctly
             let totalWorkDays = 0;
             let absentDays = 0;
             let totalDaysInMonth = 0;
             let halfDayCount = 0;
             let totalLatePenaltyMinutes = 0;
-
-            // Debug array to track OT calculations
-            const otDebugLog = [];
+            let otDetailsForTable = [];
 
             // Get total days in month from row 1 (date range)
             if (jsonData[1] && jsonData[1][1]) {
@@ -790,18 +757,23 @@
                     const clockInHHMM = convertTimeToHHMM(clockIn);
                     const clockOutHHMM = convertTimeToHHMM(clockOut);
                     const otHours = calculateOTHours(clockIn, clockOut);
-                    const previousTotal = totalOTHours;
-                    totalOTHours = addOTHours(totalOTHours, otHours);
 
-                    // Log OT calculation for debugging
-                    otDebugLog.push({
-                        date: date,
-                        clockOut: formatTime(clockOutHHMM),
-                        otHHMM: otHours.toFixed(2),
-                        otMinutes: Math.floor(otHours) * 60 + Math.round((otHours - Math.floor(otHours)) * 100),
-                        runningTotal: totalOTHours.toFixed(2)
+                    // Collect OT details for table
+                    const otHoursInt = Math.floor(otHours);
+                    const otMinutesFromDecimal = Math.round((otHours - otHoursInt) * 100);
+                    const totalOTMinutesForDay = (otHoursInt * 60) + otMinutesFromDecimal;
+
+                    otDetailsForTable.push({
+                        Date: date,
+                        'Clock Out': formatTime(clockOutHHMM),
+                        'OT (HH.MM)': otHours.toFixed(2),
+                        'Hours': otHoursInt,
+                        'Minutes': otMinutesFromDecimal,
+                        'Total OT Minutes': totalOTMinutesForDay
                     });
 
+                    totalOTHours += otHours;
+                    totalOTMinutesAccumulator += totalOTMinutesForDay; // Accumulate actual minutes
                     totalWorkDays++;
 
                     // Check if it's a half day:
@@ -841,20 +813,7 @@
                         clockOut: clockOutHHMM,
                         otHours: otHours.toFixed(2),
                         isHalfDay: isHalfDay,
-                        latePenaltyMinutes: latePenaltyMinutes,
-                        isAbsent: false
-                    });
-                } else {
-                    // Day with no clock in/out - mark as absent
-                    attendanceData.push({
-                        date,
-                        weekDay,
-                        clockIn: null,
-                        clockOut: null,
-                        otHours: '0.00',
-                        isHalfDay: false,
-                        latePenaltyMinutes: 0,
-                        isAbsent: true
+                        latePenaltyMinutes: latePenaltyMinutes
                     });
                 }
             }
@@ -867,23 +826,19 @@
 
             console.log('Final absent days:', absentDays);
 
-            console.log('\n========================================');
-            console.log('📊 OT CALCULATION BREAKDOWN');
-            console.log('========================================');
-            console.table(otDebugLog);
+            // Display OT details table
+            console.log('\n═══════════════════════════════════════════════════════════');
+            console.log('                    📊 DAILY OT BREAKDOWN                     ');
+            console.log('═══════════════════════════════════════════════════════════');
+            console.table(otDetailsForTable);
 
-            console.log('\n=== FINAL OT SUMMARY ===');
-            console.log('Total OT (HH.MM format):', totalOTHours.toFixed(2));
-
-            // Convert total OT to minutes for verification
-            const debugOTHoursInt = Math.floor(totalOTHours);
-            const debugOTMinutes = Math.round((totalOTHours - debugOTHoursInt) * 100);
-            const debugOTTotalMinutes = debugOTHoursInt * 60 + debugOTMinutes;
-
-            console.log('Total OT (Hours:Minutes):', `${debugOTHoursInt}h ${debugOTMinutes}m`);
-            console.log('Total OT (Minutes):', debugOTTotalMinutes, 'minutes');
-            console.log('OT Payment Calculation:', `${debugOTTotalMinutes} mins × Rs.2.50 = Rs.${(debugOTTotalMinutes * 2.50).toFixed(2)}`);
-            console.log('========================================\n');
+            // Calculate total OT minutes
+            const totalOTMinutesSum = otDetailsForTable.reduce((sum, day) => sum + day['Total OT Minutes'], 0);
+            console.log('═══════════════════════════════════════════════════════════');
+            console.log('🔢 TOTAL OT MINUTES:', totalOTMinutesSum, 'minutes');
+            console.log('💰 OT Rate per Minute: Rs.', (config.otRate / 60).toFixed(2));
+            console.log('💵 Total OT Payment: Rs.', (totalOTMinutesSum * (config.otRate / 60)).toFixed(2));
+            console.log('═══════════════════════════════════════════════════════════\n');
 
             // Store processed data for recalculation
             processedData = {
@@ -891,13 +846,14 @@
                 totalWorkDays,
                 absentDays,
                 totalOTHours,
+                totalOTMinutes: totalOTMinutesAccumulator, // Store the correct total minutes
                 totalDaysInMonth,
                 halfDayCount,
                 totalLatePenaltyMinutes
             };
 
             displayResults(attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes);
-            calculateSalary(totalWorkDays, totalOTHours, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes);
+            calculateSalary(totalWorkDays, totalOTMinutesAccumulator, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes);
         }
 
         function displayResults(attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes) {
@@ -919,39 +875,26 @@
             // Update attendance table
             const tableBody = document.getElementById('attendanceTableBody');
             tableBody.innerHTML = '';
-
+            
             attendanceData.forEach(record => {
                 const row = document.createElement('tr');
-
-                if (record.isAbsent) {
-                    // Display absent row
-                    row.style.backgroundColor = '#ffe6e6';
-                    row.innerHTML = `
-                        <td>${record.date}</td>
-                        <td>${record.weekDay}</td>
-                        <td colspan="3" style="text-align: center; color: #dc3545; font-weight: bold;">❌ ABSENT</td>
-                    `;
-                } else {
-                    // Display working day row
-                    const halfDayReason = record.isHalfDay ?
-                        (record.clockOut <= 17.00 ? 'Left ≤5PM' : record.clockIn > 12.00 ? 'Arrived >12PM' : '') : '';
-                    const lateWarning = record.latePenaltyMinutes > 0 ? `<span style="color: #ff6b6b; font-weight: bold;">⏰ Late ${record.latePenaltyMinutes}m</span>` : '';
-                    row.innerHTML = `
-                        <td>${record.date}</td>
-                        <td>${record.weekDay}</td>
-                        <td>${formatTime(record.clockIn)} ${lateWarning} ${record.clockIn > 12.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
-                        <td>${formatTime(record.clockOut)} ${record.clockOut <= 17.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
-                        <td style="color: #667eea; font-weight: bold;">${record.otHours} ${record.isHalfDay ? `<br><span style="color: #dc3545; font-size: 0.85em;">${halfDayReason}</span>` : ''}</td>
-                    `;
-                }
-
+                const halfDayReason = record.isHalfDay ?
+                    (record.clockOut <= 17.00 ? 'Left ≤5PM' : record.clockIn > 12.00 ? 'Arrived >12PM' : '') : '';
+                const lateWarning = record.latePenaltyMinutes > 0 ? `<span style="color: #ff6b6b; font-weight: bold;">⏰ Late ${record.latePenaltyMinutes}m</span>` : '';
+                row.innerHTML = `
+                    <td>${record.date}</td>
+                    <td>${record.weekDay}</td>
+                    <td>${formatTime(record.clockIn)} ${lateWarning} ${record.clockIn > 12.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
+                    <td>${formatTime(record.clockOut)} ${record.clockOut <= 17.00 ? '<span style="color: #dc3545; font-weight: bold;">⚠️</span>' : ''}</td>
+                    <td style="color: #667eea; font-weight: bold;">${record.otHours} ${record.isHalfDay ? `<br><span style="color: #dc3545; font-size: 0.85em;">${halfDayReason}</span>` : ''}</td>
+                `;
                 tableBody.appendChild(row);
             });
 
             document.getElementById('attendanceSection').classList.remove('hidden');
         }
 
-        function calculateSalary(workDays, otHours, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes) {
+        function calculateSalary(workDays, totalOTMinutes, absentDays, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes) {
             // Calculate per day salary: Base Salary / (Total Days - Paid Leaves)
             const effectiveWorkingDays = totalDaysInMonth - config.paidLeaves;
             const perDaySalary = config.baseSalary / effectiveWorkingDays;
@@ -969,13 +912,18 @@
             // Calculate late penalty deduction (OT rate per minute × total late minutes)
             const latePenaltyDeduction = (config.otRate / 60) * totalLatePenaltyMinutes;
 
-            // Convert OT from HH.MM to total minutes for payment calculation
-            const otHoursInt = Math.floor(otHours);
-            const otMinutes = Math.round((otHours - otHoursInt) * 100);
-            const otTotalMinutes = otHoursInt * 60 + otMinutes;
-            const otDecimalHours = otHoursInt + (otMinutes / 60);
+            // Use the passed totalOTMinutes directly (already calculated correctly)
+            const otRatePerMinute = config.otRate / 60;
 
-            const otPayment = otTotalMinutes * 2.50;
+            // Calculate OT payment based on total minutes
+            const otPayment = totalOTMinutes * otRatePerMinute;
+
+            console.log('=== OT PAYMENT CALCULATION ===');
+            console.log('Total OT Minutes:', totalOTMinutes);
+            console.log('OT Rate per Hour:', config.otRate);
+            console.log('OT Rate per Minute:', otRatePerMinute.toFixed(2));
+            console.log('OT Payment:', totalOTMinutes, '×', otRatePerMinute.toFixed(2), '=', otPayment.toFixed(2));
+            console.log('============================');
             const bonus = absentDays === 0 ? config.bonus : 0;
             const totalCredits = config.baseSalary + otPayment + bonus;
 
@@ -1013,7 +961,7 @@
                     <span><strong>Rs. ${config.baseSalary.toLocaleString()}</strong></span>
                 </div>
                 <div class="salary-row">
-                    <span>OT Payment (${otTotalMinutes} mins × Rs.2.50)</span>
+                    <span>OT Payment (${totalOTMinutes} mins × Rs.${otRatePerMinute.toFixed(2)})</span>
                     <span><strong>Rs. ${otPayment.toFixed(2)}</strong></span>
                 </div>
                 <div class="salary-row">
@@ -1068,7 +1016,7 @@
             // Display final salary
             document.getElementById('finalAmount').textContent = `Rs. ${finalSalary.toFixed(2).toLocaleString()}`;
             document.getElementById('finalDetails').innerHTML = `
-                ${workDays} working days | ${otDecimalHours.toFixed(2)} OT hours
+                ${workDays} working days | ${totalOTMinutes} OT minutes
                 ${paidLeavesUsed > 0 ? ` | ${paidLeavesUsed} paid leaves` : ''}
                 ${unpaidAbsents > 0 ? ` | ${unpaidAbsents} unpaid absents` : ''}
                 ${halfDayCount > 0 ? ` | ${halfDayCount} half days` : ''}
@@ -1101,339 +1049,6 @@
             document.getElementById('salarySection').classList.add('hidden');
         }
 
-        function downloadPDFReport() {
-            if (!processedData) {
-                alert('Please upload an attendance file first!');
-                return;
-            }
-
-            const { attendanceData, totalWorkDays, absentDays, totalOTHours, totalDaysInMonth, halfDayCount, totalLatePenaltyMinutes } = processedData;
-
-            // Calculate all values
-            const effectiveWorkingDays = totalDaysInMonth - config.paidLeaves;
-            const perDaySalary = config.baseSalary / effectiveWorkingDays;
-            const paidLeavesUsed = Math.min(absentDays, config.paidLeaves);
-            const unpaidAbsents = Math.max(0, absentDays - config.paidLeaves);
-            const absentDeduction = perDaySalary * unpaidAbsents;
-            const halfDayDeduction = (perDaySalary / 2) * halfDayCount;
-            const latePenaltyDeduction = (config.otRate / 60) * totalLatePenaltyMinutes;
-
-            const otHoursInt = Math.floor(totalOTHours);
-            const otMinutes = Math.round((totalOTHours - otHoursInt) * 100);
-            const otTotalMinutes = otHoursInt * 60 + otMinutes;
-            const otDecimalHours = otHoursInt + (otMinutes / 60);
-            const otPayment = otTotalMinutes * 2.50;
-            const bonus = absentDays === 0 ? config.bonus : 0;
-
-            const totalCredits = config.baseSalary + otPayment + bonus;
-            const totalDeductions = config.foodDeduction + absentDeduction + config.advanceAmount + halfDayDeduction + latePenaltyDeduction;
-            const finalSalary = totalCredits - totalDeductions;
-
-            // Get current date
-            const currentDate = new Date().toLocaleDateString('en-IN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            // Initialize jsPDF
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            let yPos = 20;
-
-            // Header
-            doc.setFillColor(102, 126, 234);
-            doc.rect(0, 0, 210, 50, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.setFont(undefined, 'bold');
-            doc.text('EMPLOYEE SALARY REPORT', 105, 18, { align: 'center' });
-
-            // Employee Name
-            if (config.employeeName && config.employeeName.trim() !== '') {
-                doc.setFontSize(16);
-                doc.text('Employee: ' + config.employeeName, 105, 30, { align: 'center' });
-                doc.setFontSize(11);
-                doc.setFont(undefined, 'normal');
-                doc.text('Generated on ' + currentDate, 105, 40, { align: 'center' });
-            } else {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'normal');
-                doc.text('Generated on ' + currentDate, 105, 30, { align: 'center' });
-            }
-
-            yPos = 60;
-            doc.setTextColor(0, 0, 0);
-
-            // Configuration Section
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('Configuration Details', 14, yPos);
-            yPos += 10;
-
-            const configBody = [];
-            if (config.employeeName && config.employeeName.trim() !== '') {
-                configBody.push(['Employee Name', config.employeeName]);
-            }
-            configBody.push(
-                ['Base Salary', 'Rs. ' + config.baseSalary.toLocaleString()],
-                ['OT Rate/Minute', 'Rs. 2.50'],
-                ['Full Attendance Bonus', 'Rs. ' + config.bonus.toLocaleString()],
-                ['Food Deduction', 'Rs. ' + config.foodDeduction.toLocaleString()],
-                ['Paid Leaves Allowed', config.paidLeaves + ' days'],
-                ['Advance Given', 'Rs. ' + config.advanceAmount.toLocaleString()]
-            );
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Parameter', 'Value']],
-                body: configBody,
-                theme: 'grid',
-                headStyles: { fillColor: [102, 126, 234] },
-                margin: { left: 14, right: 14 }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 15;
-
-            // Attendance Summary
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('Attendance Summary', 14, yPos);
-            yPos += 10;
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Metric', 'Value']],
-                body: [
-                    ['Total Days in Month', totalDaysInMonth],
-                    ['Total Work Days', totalWorkDays],
-                    ['Absent Days', absentDays],
-                    ['Paid Leaves Used', paidLeavesUsed],
-                    ['Unpaid Absents', unpaidAbsents],
-                    ['Half Days', halfDayCount],
-                    ['Total OT', otHoursInt + 'h ' + otMinutes + 'm (' + otTotalMinutes + ' mins)'],
-                    ['Late Penalty Minutes', totalLatePenaltyMinutes + ' minutes']
-                ],
-                theme: 'grid',
-                headStyles: { fillColor: [102, 126, 234] },
-                margin: { left: 14, right: 14 }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 15;
-
-            // Check if we need a new page
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            // Daily OT Breakdown
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('Daily OT Breakdown', 14, yPos);
-            yPos += 10;
-
-            const otTableData = [];
-            attendanceData.forEach(record => {
-                if (!record.isAbsent && parseFloat(record.otHours) > 0) {
-                    const otHrs = Math.floor(parseFloat(record.otHours));
-                    const otMins = Math.round((parseFloat(record.otHours) - otHrs) * 100);
-                    const otMinsTotal = otHrs * 60 + otMins;
-                    const otAmt = otMinsTotal * 2.50;
-
-                    let remarks = [];
-                    if (record.isHalfDay) {
-                        if (record.clockOut <= 17.00) remarks.push('Half Day (Left ≤5PM)');
-                        if (record.clockIn > 12.00) remarks.push('Half Day (>12PM)');
-                    }
-                    if (record.latePenaltyMinutes > 0) {
-                        remarks.push('Late ' + record.latePenaltyMinutes + 'm');
-                    }
-
-                    otTableData.push([
-                        record.date,
-                        record.weekDay,
-                        formatTime(record.clockIn),
-                        formatTime(record.clockOut),
-                        otHrs + 'h ' + otMins + 'm',
-                        otMinsTotal + ' mins',
-                        'Rs. ' + otAmt.toFixed(2),
-                        remarks.join(', ') || '-'
-                    ]);
-                }
-            });
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Date', 'Day', 'Clock In', 'Clock Out', 'OT Time', 'OT Mins', 'OT Amount', 'Remarks']],
-                body: otTableData,
-                theme: 'striped',
-                headStyles: { fillColor: [102, 126, 234], fontSize: 9 },
-                bodyStyles: { fontSize: 8 },
-                margin: { left: 14, right: 14 },
-                columnStyles: {
-                    0: { cellWidth: 20 },
-                    1: { cellWidth: 18 },
-                    2: { cellWidth: 20 },
-                    3: { cellWidth: 20 },
-                    4: { cellWidth: 20 },
-                    5: { cellWidth: 20 },
-                    6: { cellWidth: 25 },
-                    7: { cellWidth: 39 }
-                }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 15;
-
-            // Check if we need a new page
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            // Salary Calculation
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('Salary Calculation', 14, yPos);
-            yPos += 10;
-
-            // Credits
-            doc.autoTable({
-                startY: yPos,
-                head: [['Credits', 'Amount']],
-                body: [
-                    ['Base Salary', 'Rs. ' + config.baseSalary.toLocaleString()],
-                    ['OT Payment (' + otTotalMinutes + ' mins × Rs.2.50)', 'Rs. ' + otPayment.toFixed(2)],
-                    ['Full Attendance Bonus ' + (absentDays === 0 ? '✓' : '✗'), 'Rs. ' + bonus.toFixed(2)],
-                    ...(paidLeavesUsed > 0 ? [['Paid Leaves Used: ' + paidLeavesUsed + ' days', 'Included in Base']] : []),
-                    ['TOTAL CREDITS', 'Rs. ' + totalCredits.toFixed(2)]
-                ],
-                theme: 'grid',
-                headStyles: { fillColor: [40, 167, 69] },
-                margin: { left: 14, right: 14 },
-                footStyles: { fillColor: [40, 167, 69], fontStyle: 'bold' }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 10;
-
-            // Deductions
-            const deductionRows = [
-                ['Food Deduction', 'Rs. ' + config.foodDeduction.toFixed(2)]
-            ];
-            if (unpaidAbsents > 0) {
-                deductionRows.push(['Absent Deduction (' + unpaidAbsents + ' days × Rs.' + perDaySalary.toFixed(2) + ')', 'Rs. ' + absentDeduction.toFixed(2)]);
-            }
-            if (halfDayCount > 0) {
-                deductionRows.push(['Half Day Deduction (' + halfDayCount + ' days × Rs.' + (perDaySalary / 2).toFixed(2) + ')', 'Rs. ' + halfDayDeduction.toFixed(2)]);
-            }
-            if (config.advanceAmount > 0) {
-                deductionRows.push(['Advance', 'Rs. ' + config.advanceAmount.toFixed(2)]);
-            }
-            if (totalLatePenaltyMinutes > 0) {
-                deductionRows.push(['Late Penalty (' + totalLatePenaltyMinutes + ' mins × Rs.' + (config.otRate / 60).toFixed(2) + '/min)', 'Rs. ' + latePenaltyDeduction.toFixed(2)]);
-            }
-            deductionRows.push(['TOTAL DEDUCTIONS', 'Rs. ' + totalDeductions.toFixed(2)]);
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Deductions', 'Amount']],
-                body: deductionRows,
-                theme: 'grid',
-                headStyles: { fillColor: [220, 53, 69] },
-                margin: { left: 14, right: 14 },
-                footStyles: { fillColor: [220, 53, 69], fontStyle: 'bold' }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 15;
-
-            // Check if we need a new page for final salary
-            if (yPos > 220) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            // Final Salary Calculation Section
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(0, 0, 0);
-            doc.text('Final Salary Calculation', 14, yPos);
-            yPos += 10;
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Description', 'Amount']],
-                body: [
-                    ['Total Credits', 'Rs. ' + totalCredits.toFixed(2)],
-                    ['Total Deductions', '- Rs. ' + totalDeductions.toFixed(2)],
-                    ['FINAL SALARY (Credits - Deductions)', 'Rs. ' + finalSalary.toFixed(2)]
-                ],
-                theme: 'grid',
-                headStyles: { fillColor: [102, 126, 234] },
-                margin: { left: 14, right: 14 },
-                didParseCell: function (data) {
-                    // Highlight the final row
-                    if (data.row.index === 2) {
-                        data.cell.styles.fillColor = [102, 126, 234];
-                        data.cell.styles.textColor = [255, 255, 255];
-                        data.cell.styles.fontStyle = 'bold';
-                        data.cell.styles.fontSize = 14;
-                    }
-                }
-            });
-
-            yPos = doc.lastAutoTable.finalY + 15;
-
-            // Final Salary Box
-            doc.setFillColor(102, 126, 234);
-            doc.rect(14, yPos, 182, 35, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'bold');
-            doc.text('FINAL SALARY TO BE PAID', 105, yPos + 12, { align: 'center' });
-            doc.setFontSize(32);
-            doc.text('Rs. ' + finalSalary.toFixed(2), 105, yPos + 28, { align: 'center' });
-
-            yPos += 45;
-            doc.setTextColor(0, 0, 0);
-
-            // Formulas Section
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('Calculation Formulas', 14, yPos);
-            yPos += 10;
-
-            doc.autoTable({
-                startY: yPos,
-                head: [['Formula', 'Calculation']],
-                body: [
-                    ['Effective Working Days', totalDaysInMonth + ' - ' + config.paidLeaves + ' = ' + effectiveWorkingDays + ' days'],
-                    ['Per Day Salary', 'Rs.' + config.baseSalary + ' ÷ ' + effectiveWorkingDays + ' = Rs.' + perDaySalary.toFixed(2)],
-                    ['Half Day Rate', 'Rs.' + perDaySalary.toFixed(2) + ' ÷ 2 = Rs.' + (perDaySalary / 2).toFixed(2)],
-                    ['Late Penalty Rate', 'Rs.' + config.otRate + ' ÷ 60 = Rs.' + (config.otRate / 60).toFixed(2) + '/min']
-                ],
-                theme: 'grid',
-                headStyles: { fillColor: [102, 126, 234] },
-                margin: { left: 14, right: 14 }
-            });
-
-            // Footer
-            yPos = doc.internal.pageSize.height - 20;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(100, 100, 100);
-            doc.text('This is an auto-generated salary report.', 105, yPos, { align: 'center' });
-            doc.text('© 2025 All Rights Reserved - HASSAAN', 105, yPos + 5, { align: 'center' });
-
-            // Save PDF
-            doc.save('Salary_Report_' + new Date().toISOString().split('T')[0] + '.pdf');
-        }
-
         function downloadReport() {
             if (!processedData) {
                 alert('Please upload an attendance file first!');
@@ -1453,9 +1068,8 @@
 
             const otHoursInt = Math.floor(totalOTHours);
             const otMinutes = Math.round((totalOTHours - otHoursInt) * 100);
-            const otTotalMinutes = otHoursInt * 60 + otMinutes;
             const otDecimalHours = otHoursInt + (otMinutes / 60);
-            const otPayment = otTotalMinutes * 2.50;
+            const otPayment = otDecimalHours * config.otRate;
             const bonus = absentDays === 0 ? config.bonus : 0;
 
             const totalCredits = config.baseSalary + otPayment + bonus;
@@ -1680,24 +1294,15 @@
 `;
 
             attendanceData.forEach(record => {
-                if (record.isAbsent) {
-                    reportHTML += `
-                <tr style="background-color: #ffe6e6;">
-                    <td>${record.date}</td>
-                    <td>${record.weekDay}</td>
-                    <td colspan="4" style="text-align: center; color: #dc3545; font-weight: bold;">ABSENT</td>
-                </tr>
-`;
-                } else {
-                    const remarks = [];
-                    if (record.isHalfDay) {
-                        if (record.clockOut <= 17.00) remarks.push('Half Day (Left ≤5PM)');
-                        if (record.clockIn > 12.00) remarks.push('Half Day (Arrived >12PM)');
-                    }
-                    if (record.latePenaltyMinutes > 0) {
-                        remarks.push(`Late ${record.latePenaltyMinutes}m`);
-                    }
-                    reportHTML += `
+                const remarks = [];
+                if (record.isHalfDay) {
+                    if (record.clockOut <= 17.00) remarks.push('Half Day (Left ≤5PM)');
+                    if (record.clockIn > 12.00) remarks.push('Half Day (Arrived >12PM)');
+                }
+                if (record.latePenaltyMinutes > 0) {
+                    remarks.push(`Late ${record.latePenaltyMinutes}m`);
+                }
+                reportHTML += `
                 <tr>
                     <td>${record.date}</td>
                     <td>${record.weekDay}</td>
@@ -1707,7 +1312,6 @@
                     <td>${remarks.join(', ') || '-'}</td>
                 </tr>
 `;
-                }
             });
 
             reportHTML += `
@@ -1725,7 +1329,7 @@
                 <span class="credits">Rs. ${config.baseSalary.toLocaleString()}</span>
             </div>
             <div class="summary-row">
-                <span>OT Payment (${otTotalMinutes} mins × Rs.2.50)</span>
+                <span>OT Payment (${otDecimalHours.toFixed(2)} hrs × Rs.${config.otRate})</span>
                 <span class="credits">Rs. ${otPayment.toFixed(2)}</span>
             </div>
             <div class="summary-row">
@@ -1811,7 +1415,7 @@
 
     <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 2px solid #ddd; color: #666;">
         <p>This is an auto-generated salary report.</p>
-        <p style="margin-top: 5px;">Generated using Employee Salary Calculator</p>
+        <p style="margin-top: 5px;">Generated using Employee Salary Calculator</p>s
         <p style="margin-top: 15px; font-size: 14px; font-weight: bold;">© 2025 All Rights Reserved - HASSAAN</p>
     </div>
 </body>
