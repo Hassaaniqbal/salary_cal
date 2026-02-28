@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -417,6 +418,13 @@
                     Upload Excel File
                 </button>
                 <p class="upload-info">Upload attendance Excel file with clock-in and clock-out times</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="downloadTemplate()" style="background: transparent; color: #667eea; border: 2px solid #667eea; padding: 10px 28px; border-radius: 10px; font-size: 1em; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                    Download Sample Format
+                </button>
+                <p style="margin-top: 8px; font-size: 0.85em; color: #6c757d;">Not sure about the format? Download a sample Excel template first.</p>
             </div>
 
             <div id="errorMessage" class="error-message hidden"></div>
@@ -1051,6 +1059,52 @@
             document.getElementById('salarySection').classList.add('hidden');
         }
 
+        function downloadTemplate() {
+            const wb = XLSX.utils.book_new();
+
+            // Build the template data matching the exact format the parser expects
+            const templateData = [
+                // Row 1  (index 0) – title row
+                ["Employee Attendance Report"],
+                // Row 2  (index 1) – REQUIRED: date range in column B (B2)
+                ["Period:", "2025/09/01-2025/09/30"],
+                // Row 3  (index 2)
+                ["Employee Name:", "EMPLOYEE NAME"],
+                // Row 4  (index 3)
+                ["Department:", "Operations"],
+                // Row 5  (index 4) – REQUIRED: absent days count in any column of this row
+                ["Absent Days:", 2],
+                // Rows 6-8 (index 5-7) – spacer rows
+                [""],
+                [""],
+                [""],
+                // Row 9  (index 8) – column headers (not parsed, just for reference)
+                ["Date", "Day", "Clock In", "Clock Out"],
+                // Row 10+ (index 9+) – attendance records (parsed by the calculator)
+                ["2025/09/01", "Mon", "10:00", "19:30"],
+                ["2025/09/02", "Tue", "10:05", "20:15"],
+                ["2025/09/03", "Wed", "10:35", "19:00"],
+                ["2025/09/04", "Thu", "09:55", "17:00"],
+                ["2025/09/05", "Fri", "10:00", "21:00"],
+                ["2025/09/08", "Mon", "10:00", "19:00"],
+                ["2025/09/09", "Tue", "10:10", "20:30"],
+                ["2025/09/10", "Wed", "10:00", "19:15"]
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+            // Set column widths for readability
+            ws['!cols'] = [
+                { wch: 20 },
+                { wch: 28 },
+                { wch: 12 },
+                { wch: 12 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+            XLSX.writeFile(wb, "Attendance_Template.xlsx");
+        }
+
         function downloadReport() {
             if (!processedData) {
                 alert('Please upload an attendance file first!');
@@ -1320,6 +1374,12 @@
             });
 
             yPos = doc.lastAutoTable.finalY + 15;
+
+            // Final Salary Box - ensure enough space (box ~40 units tall), add new page if needed
+            if (yPos > 230) {
+                doc.addPage();
+                yPos = 20;
+            }
 
             // Final Salary Box
             doc.setDrawColor(0, 0, 0);
